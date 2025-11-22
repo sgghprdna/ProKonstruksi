@@ -93,7 +93,11 @@ const Tools: React.FC = () => {
                   });
                   processResponse(response);
                 } catch (error: any) {
-                  setRawError(error.message || 'Gagal mencari toko via GPS. Silakan coba mode Manual.');
+                  let msg = error.message || 'Gagal mencari toko via GPS.';
+                  if (msg.includes("429") || msg.includes("Quota") || msg.includes("RESOURCE_EXHAUSTED")) {
+                      msg = "Kuota AI Google Gemini sedang penuh. Silakan coba lagi nanti.";
+                  }
+                  setRawError(msg);
                 } finally {
                   setIsLoading(false);
                 }
@@ -119,7 +123,11 @@ const Tools: React.FC = () => {
         }
     } catch (error: any) {
         console.error(error);
-        setRawError(error.message || 'Terjadi kesalahan saat menghubungi AI.');
+        let msg = error.message || 'Terjadi kesalahan saat menghubungi AI.';
+        if (msg.includes("429") || msg.includes("Quota") || msg.includes("RESOURCE_EXHAUSTED")) {
+            msg = "Kuota AI Google Gemini sedang penuh. Silakan coba lagi nanti.";
+        }
+        setRawError(msg);
         setIsLoading(false);
     }
   };

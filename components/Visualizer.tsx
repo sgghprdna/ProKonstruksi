@@ -266,8 +266,12 @@ const Visualizer: React.FC = () => {
 
     } catch (error: any) {
       console.error(error);
-      // Show explicit error message to user (e.g., "API Key missing")
-      alert(`Gagal: ${error.message || "Terjadi kesalahan saat memproses."}`);
+      // Handle 429 Quota Error gracefully
+      let msg = error.message || "Terjadi kesalahan saat memproses.";
+      if (msg.includes("429") || msg.includes("Quota") || msg.includes("RESOURCE_EXHAUSTED")) {
+        msg = "Kuota AI Google Gemini sedang penuh. Silakan coba lagi nanti (biasanya reset tiap jam).";
+      }
+      alert(`Gagal: ${msg}`);
     } finally {
       setIsLoading(false);
     }
@@ -284,7 +288,12 @@ const Visualizer: React.FC = () => {
           setScanResult(result);
       } catch (error: any) {
           console.error(error);
-          alert(`Gagal: ${error.message || "Gagal menganalisa gambar."}`);
+          // Handle 429 Quota Error gracefully
+          let msg = error.message || "Gagal menganalisa gambar.";
+          if (msg.includes("429") || msg.includes("Quota") || msg.includes("RESOURCE_EXHAUSTED")) {
+             msg = "Kuota AI Google Gemini sedang penuh. Silakan coba lagi nanti (biasanya reset tiap jam).";
+          }
+          alert(`Gagal: ${msg}`);
       } finally {
           setIsLoading(false);
       }
