@@ -23,17 +23,18 @@ const App: React.FC = () => {
   };
 
   return (
-    <div className="h-screen w-full bg-gray-100 flex justify-center">
-      {/* Mobile-first container */}
-      <div className="w-full max-w-md bg-white h-full relative shadow-2xl overflow-hidden flex flex-col">
+    // Use h-[100dvh] to handle mobile browser address bars correctly
+    <div className="h-[100dvh] w-full bg-gray-100 flex justify-center overflow-hidden">
+      {/* Mobile-first container centered */}
+      <div className="w-full max-w-md bg-white h-full relative shadow-2xl flex flex-col mx-auto">
         
-        {/* Main Content Area - Flex 1 takes remaining space, Nav stays fixed below */}
-        <div className="flex-1 overflow-hidden relative flex flex-col">
+        {/* Main Content Area - Flex 1 takes remaining space */}
+        <div className="flex-1 overflow-hidden relative flex flex-col bg-gray-50">
            {renderView()}
         </div>
 
-        {/* Bottom Navigation - Fixed relative to flex container */}
-        <nav className="bg-white border-t border-gray-200 flex justify-around items-center p-2 pb-4 z-50 shrink-0 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)]">
+        {/* Bottom Navigation - Fixed size at bottom, safe area padding included implicitly by structure */}
+        <nav className="bg-white border-t border-gray-200 flex justify-around items-center p-2 pb-3 z-50 shrink-0 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)]">
           <NavButton 
             active={currentView === AppView.HOME} 
             onClick={() => setCurrentView(AppView.HOME)} 
@@ -68,7 +69,7 @@ const App: React.FC = () => {
 const NavButton: React.FC<{ active: boolean; onClick: () => void; icon: React.ReactNode; label: string }> = ({ active, onClick, icon, label }) => (
   <button 
     onClick={onClick} 
-    className={`flex flex-col items-center gap-1 p-2 rounded-lg transition-all ${active ? 'text-indigo-600' : 'text-gray-400 hover:text-gray-600'}`}
+    className={`flex flex-col items-center gap-1 p-2 rounded-lg transition-all w-16 ${active ? 'text-indigo-600 bg-indigo-50' : 'text-gray-400 hover:text-gray-600'}`}
   >
     {icon}
     <span className="text-[10px] font-medium">{label}</span>
@@ -85,7 +86,7 @@ const HomeMenu: React.FC<{ setView: (v: AppView) => void }> = ({ setView }) => (
     <div className="grid grid-cols-1 gap-4">
       <DashboardCard 
         title="AI Visualizer" 
-        desc="Ubah dinding bata jadi marmer dalam hitungan detik."
+        desc="Ubah desain ruangan dalam hitungan detik."
         icon={<PenTool className="text-white" size={24} />}
         color="bg-indigo-500"
         onClick={() => setView(AppView.VISUALIZER)}
@@ -109,8 +110,8 @@ const HomeMenu: React.FC<{ setView: (v: AppView) => void }> = ({ setView }) => (
 );
 
 const DashboardCard: React.FC<{ title: string; desc: string; icon: React.ReactNode; color: string; onClick: () => void }> = ({ title, desc, icon, color, onClick }) => (
-  <button onClick={onClick} className="bg-white p-5 rounded-2xl shadow-md border border-gray-100 flex items-center gap-4 hover:shadow-lg transition-all text-left group">
-    <div className={`${color} p-4 rounded-xl shadow-sm group-hover:scale-110 transition-transform`}>
+  <button onClick={onClick} className="bg-white p-5 rounded-2xl shadow-md border border-gray-100 flex items-center gap-4 hover:shadow-lg transition-all text-left group w-full">
+    <div className={`${color} p-4 rounded-xl shadow-sm group-hover:scale-110 transition-transform shrink-0`}>
       {icon}
     </div>
     <div>

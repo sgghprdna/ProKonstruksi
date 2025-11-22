@@ -78,7 +78,8 @@ const Visualizer: React.FC = () => {
 
   useEffect(() => {
       if (image) {
-          setTimeout(fitImageToScreen, 50);
+          // Slightly increased delay to allow flex layout to settle
+          setTimeout(fitImageToScreen, 100);
       }
   }, [image, fitImageToScreen]);
 
@@ -336,7 +337,7 @@ const Visualizer: React.FC = () => {
   return (
     <div className="flex flex-col h-full bg-gray-900 relative overflow-hidden">
       
-      {/* 1. Header with Tabs */}
+      {/* 1. Header with Tabs (Fixed Height, Shrink 0) */}
       <div className="bg-white/95 backdrop-blur px-4 py-3 shadow-md z-30 flex justify-between items-center shrink-0 relative">
         <div className="flex items-center gap-4">
             {/* Tab Switcher */}
@@ -390,8 +391,9 @@ const Visualizer: React.FC = () => {
         )}
       </div>
 
-      {/* 2. Canvas Area */}
-      <div className="absolute inset-0 top-[68px] bottom-[80px] bg-gray-900 overflow-hidden touch-none" ref={containerRef}>
+      {/* 2. Canvas Area (Flexible Height) */}
+      {/* Using flex-1 to fill available space between Header and Bottom Panel */}
+      <div className="flex-1 relative bg-gray-900 overflow-hidden touch-none" ref={containerRef}>
         {!image ? (
           <div className="absolute inset-0 flex flex-col items-center justify-center p-6 text-center space-y-6">
              <div className="bg-gray-800/50 p-6 rounded-3xl border border-gray-700 max-w-xs w-full">
@@ -433,7 +435,7 @@ const Visualizer: React.FC = () => {
                          <img src={resultImage} alt="Result" className="absolute inset-0 w-full h-full pointer-events-none z-20 max-w-none"/>
                     )}
                     
-                    {/* Masking Canvas - Only visible in Visualizer mode when no result */}
+                    {/* Masking Canvas */}
                     <canvas
                         ref={canvasRef}
                         className={`absolute inset-0 z-10 max-w-none ${resultImage || activeTab === 'scanner' ? 'hidden' : 'block'}`}
@@ -456,7 +458,7 @@ const Visualizer: React.FC = () => {
                 </div>
             </div>
 
-            {/* 3. Controls Overlay (Visualizer Only) */}
+            {/* Floating Controls Inside Canvas Area (Visualizer Only) */}
             {activeTab === 'visualizer' && !resultImage && (
                 <div className="absolute bottom-4 right-4 flex flex-col items-center gap-3 z-40">
                     {interactionMode === 'draw' && (
@@ -486,9 +488,9 @@ const Visualizer: React.FC = () => {
         )}
       </div>
 
-      {/* 4. Bottom Panel (Fixed inside Visualizer container) */}
+      {/* 4. Bottom Panel (Flex Item, Shrink 0) - Now sits properly in flow */}
       {image && (
-          <div className={`absolute bottom-0 left-0 right-0 bg-white/95 backdrop-blur border-t border-gray-200 p-4 z-50 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.1)] transition-all`}>
+          <div className="shrink-0 bg-white/95 backdrop-blur border-t border-gray-200 p-4 z-50 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.1)] transition-all">
              
              {/* A. VISUALIZER CONTROLS */}
              {activeTab === 'visualizer' && (
