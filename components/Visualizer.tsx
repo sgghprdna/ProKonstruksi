@@ -391,7 +391,7 @@ const Visualizer: React.FC = () => {
       </div>
 
       {/* 2. Canvas Area */}
-      <div className="absolute inset-0 top-[68px] bottom-[140px] bg-gray-900 overflow-hidden touch-none" ref={containerRef}>
+      <div className="absolute inset-0 top-[68px] bottom-[80px] bg-gray-900 overflow-hidden touch-none" ref={containerRef}>
         {!image ? (
           <div className="absolute inset-0 flex flex-col items-center justify-center p-6 text-center space-y-6">
              <div className="bg-gray-800/50 p-6 rounded-3xl border border-gray-700 max-w-xs w-full">
@@ -486,9 +486,9 @@ const Visualizer: React.FC = () => {
         )}
       </div>
 
-      {/* 4. Bottom Panel (Fixed) */}
+      {/* 4. Bottom Panel (Fixed inside Visualizer container) */}
       {image && (
-          <div className={`absolute bottom-[68px] left-0 right-0 bg-white/95 backdrop-blur border-t border-gray-200 p-4 z-50 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.1)] transition-all`}>
+          <div className={`absolute bottom-0 left-0 right-0 bg-white/95 backdrop-blur border-t border-gray-200 p-4 z-50 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.1)] transition-all`}>
              
              {/* A. VISUALIZER CONTROLS */}
              {activeTab === 'visualizer' && (

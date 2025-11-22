@@ -151,7 +151,7 @@ const Tools: React.FC = () => {
       </div>
 
       {/* Search Area */}
-      <div className="p-4 space-y-4 overflow-y-auto flex-1 pb-24">
+      <div className="p-4 space-y-4 overflow-y-auto flex-1 pb-6">
         <div className="bg-white rounded-2xl p-3 shadow-sm border border-gray-200 space-y-3">
              {/* Main Search Input */}
              <div className="flex gap-2 items-center border-b border-gray-100 pb-2">

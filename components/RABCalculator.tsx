@@ -711,7 +711,7 @@ const RABCalculator: React.FC = () => {
         </div>
 
         {/* Main Content (Scrollable) */}
-        <div className="flex-1 overflow-y-auto p-4 space-y-6 pb-32">
+        <div className="flex-1 overflow-y-auto p-4 space-y-6 pb-6">
             
             {/* Project Info Card */}
             <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-200 space-y-3">

@@ -27,13 +27,13 @@ const App: React.FC = () => {
       {/* Mobile-first container */}
       <div className="w-full max-w-md bg-white h-full relative shadow-2xl overflow-hidden flex flex-col">
         
-        {/* Main Content Area */}
-        <div className="flex-1 overflow-hidden relative">
+        {/* Main Content Area - Flex 1 takes remaining space, Nav stays fixed below */}
+        <div className="flex-1 overflow-hidden relative flex flex-col">
            {renderView()}
         </div>
 
-        {/* Bottom Navigation */}
-        <nav className="bg-white border-t border-gray-200 flex justify-around items-center p-2 pb-4 absolute bottom-0 w-full z-50">
+        {/* Bottom Navigation - Fixed relative to flex container */}
+        <nav className="bg-white border-t border-gray-200 flex justify-around items-center p-2 pb-4 z-50 shrink-0 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)]">
           <NavButton 
             active={currentView === AppView.HOME} 
             onClick={() => setCurrentView(AppView.HOME)} 
@@ -76,7 +76,7 @@ const NavButton: React.FC<{ active: boolean; onClick: () => void; icon: React.Re
 );
 
 const HomeMenu: React.FC<{ setView: (v: AppView) => void }> = ({ setView }) => (
-  <div className="p-6 space-y-8 overflow-y-auto h-full pb-24 bg-gradient-to-br from-indigo-50 to-white">
+  <div className="p-6 space-y-8 overflow-y-auto h-full bg-gradient-to-br from-indigo-50 to-white pb-6">
     <header>
       <h1 className="text-3xl font-extrabold text-slate-800 tracking-tight">Pro<span className="text-indigo-600">Konstruksi</span></h1>
       <p className="text-gray-500 mt-1">Asisten Cerdas Kontraktor Modern</p>
