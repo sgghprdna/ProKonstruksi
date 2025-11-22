@@ -3,12 +3,16 @@ import react from '@vitejs/plugin-react'
 
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => {
+  // Load env file based on `mode` in the current working directory.
+  // Set the third parameter to '' to load all env regardless of the `VITE_` prefix.
   const env = loadEnv(mode, process.cwd(), '');
+  
   return {
     plugins: [react()],
     define: {
-      // Polyfill process.env untuk kompatibilitas dengan instruksi SDK
-      'process.env': env
+      // Expose env variables to the client-side code
+      // We explicitly stringify the process.env object to avoid runtime errors
+      'process.env': JSON.stringify(env)
     }
   }
 })

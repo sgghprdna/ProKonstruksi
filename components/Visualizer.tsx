@@ -104,13 +104,18 @@ const Visualizer: React.FC = () => {
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
-      const base64 = await fileToGenerativePart(e.target.files[0]);
-      setImage(`data:image/png;base64,${base64}`);
-      setResultImage(null);
-      setScanResult(null); // Reset scan
-      setHasDrawn(false);
-      setInteractionMode('draw');
-      setPrompt('');
+      try {
+        // Compression is now handled in fileToGenerativePart
+        const base64 = await fileToGenerativePart(e.target.files[0]);
+        setImage(`data:image/jpeg;base64,${base64}`); // Use JPEG for compressed images
+        setResultImage(null);
+        setScanResult(null); // Reset scan
+        setHasDrawn(false);
+        setInteractionMode('draw');
+        setPrompt('');
+      } catch (error: any) {
+        alert(error.message || "Gagal memuat gambar.");
+      }
     }
   };
 
@@ -256,12 +261,13 @@ const Visualizer: React.FC = () => {
       if (newImageBase64) {
         setResultImage(`data:image/png;base64,${newImageBase64}`);
       } else {
-        alert("Gagal mendapatkan gambar dari AI. Coba lagi.");
+        alert("Gagal mendapatkan gambar dari AI. Silakan coba lagi.");
       }
 
-    } catch (error) {
+    } catch (error: any) {
       console.error(error);
-      alert("Terjadi kesalahan saat memproses.");
+      // Show explicit error message to user (e.g., "API Key missing")
+      alert(`Gagal: ${error.message || "Terjadi kesalahan saat memproses."}`);
     } finally {
       setIsLoading(false);
     }
@@ -276,9 +282,9 @@ const Visualizer: React.FC = () => {
           const cleanBase64 = image.split(',')[1];
           const result = await detectMaterials(cleanBase64);
           setScanResult(result);
-      } catch (error) {
+      } catch (error: any) {
           console.error(error);
-          alert("Gagal menganalisa gambar.");
+          alert(`Gagal: ${error.message || "Gagal menganalisa gambar."}`);
       } finally {
           setIsLoading(false);
       }

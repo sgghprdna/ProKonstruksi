@@ -1,32 +1,96 @@
 import { GoogleGenAI, Type } from "@google/genai";
 
 const apiKey = process.env.API_KEY || '';
-const ai = new GoogleGenAI({ apiKey });
 
-// Helper to convert file/blob to base64
-export const fileToGenerativePart = async (file: File | Blob): Promise<string> => {
+// Helper: Validate API Key
+const getAI = () => {
+  if (!apiKey || apiKey.trim() === '' || apiKey.includes('AIza...')) {
+    throw new Error("API Key Google Gemini belum dikonfigurasi atau tidak valid. Silakan cek pengaturan Environment Variable di Vercel.");
+  }
+  return new GoogleGenAI({ apiKey });
+};
+
+// Helper: Compress Image for Mobile Optimization (Max 1024px, JPEG 0.8)
+const compressImage = (file: File | Blob): Promise<Blob> => {
   return new Promise((resolve, reject) => {
+    const img = new Image();
     const reader = new FileReader();
-    reader.onloadend = () => {
-      const base64String = reader.result as string;
-      // Remove data url prefix (e.g. "data:image/jpeg;base64,")
-      const base64Data = base64String.split(',')[1];
-      resolve(base64Data);
+
+    reader.onload = (e) => {
+      img.src = e.target?.result as string;
     };
     reader.onerror = reject;
+
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      let width = img.width;
+      let height = img.height;
+      const MAX_SIZE = 1024; // Limit to 1024px to prevent payload too large errors
+
+      if (width > height) {
+        if (width > MAX_SIZE) {
+          height *= MAX_SIZE / width;
+          width = MAX_SIZE;
+        }
+      } else {
+        if (height > MAX_SIZE) {
+          width *= MAX_SIZE / height;
+          height = MAX_SIZE;
+        }
+      }
+
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext('2d');
+      ctx?.drawImage(img, 0, 0, width, height);
+
+      canvas.toBlob(
+        (blob) => {
+          if (blob) resolve(blob);
+          else reject(new Error("Gagal kompresi gambar"));
+        },
+        'image/jpeg',
+        0.8 // Quality 80%
+      );
+    };
+
     reader.readAsDataURL(file);
   });
 };
 
+// Helper to convert file/blob to base64 with compression
+export const fileToGenerativePart = async (file: File | Blob): Promise<string> => {
+  try {
+    // Compress image first to avoid "Payload Too Large" or timeouts on mobile
+    const compressedBlob = await compressImage(file);
+
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const base64String = reader.result as string;
+        // Remove data url prefix (e.g. "data:image/jpeg;base64,")
+        const base64Data = base64String.split(',')[1];
+        resolve(base64Data);
+      };
+      reader.onerror = reject;
+      reader.readAsDataURL(compressedBlob);
+    });
+  } catch (error) {
+    console.error("Image processing error:", error);
+    throw new Error("Gagal memproses gambar. Pastikan format didukung.");
+  }
+};
+
 export const visualizeRoom = async (imageBase64: string, prompt: string, maskBase64?: string) => {
   try {
+    const ai = getAI();
     // Using gemini-2.5-flash-image as it supports masking tasks well
     const model = 'gemini-2.5-flash-image';
     
     const parts: any[] = [
       {
         inlineData: {
-          mimeType: 'image/png',
+          mimeType: 'image/jpeg', // Always JPEG due to compression
           data: imageBase64
         }
       }
@@ -38,7 +102,7 @@ export const visualizeRoom = async (imageBase64: string, prompt: string, maskBas
       // If a mask is provided, send it as a second image part
       parts.push({
         inlineData: {
-          mimeType: 'image/png',
+          mimeType: 'image/png', // Mask remains PNG
           data: maskBase64
         }
       });
@@ -72,14 +136,15 @@ export const visualizeRoom = async (imageBase64: string, prompt: string, maskBas
     });
 
     return response;
-  } catch (error) {
+  } catch (error: any) {
     console.error("Visualization Error:", error);
-    throw error;
+    throw new Error(error.message || "Gagal memproses visualisasi.");
   }
 };
 
 export const detectMaterials = async (imageBase64: string) => {
   try {
+    const ai = getAI();
     const response = await ai.models.generateContent({
       model: 'gemini-2.5-flash',
       contents: {
@@ -102,14 +167,15 @@ export const detectMaterials = async (imageBase64: string) => {
       }
     });
     return JSON.parse(response.text || "{}");
-  } catch (error) {
+  } catch (error: any) {
     console.error("Material Detection Error:", error);
-    throw error;
+    throw new Error(error.message || "Gagal mendeteksi material.");
   }
 };
 
 export const findStores = async (query: string, location: { lat: number; long: number } | string) => {
   try {
+    const ai = getAI();
     let locationPrompt = "";
     let toolConfig = undefined;
 
@@ -148,8 +214,8 @@ export const findStores = async (query: string, location: { lat: number; long: n
     });
     
     return response;
-  } catch (error) {
+  } catch (error: any) {
     console.error("Store Finder Error:", error);
-    throw error;
+    throw new Error(error.message || "Gagal mencari toko.");
   }
 };
