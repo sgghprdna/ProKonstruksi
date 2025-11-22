@@ -1,0 +1,8 @@
+{
+  "name": "ProKonstruksi",
+  "description": "Aplikasi kontraktor cerdas dengan visualisasi AI, perhitungan RAB otomatis, dan asisten lapangan.",
+  "requestFramePermissions": [
+    "camera",
+    "geolocation"
+  ]
+}
