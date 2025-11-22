@@ -33,10 +33,10 @@ const Tools: React.FC = () => {
 
       // 2. Parse Text Response (Expected format: Name | Address | Rating | Distance)
       const text = response.text || '';
-      const lines = text.split('\n');
+      const lines = (text as string).split('\n');
       const parsedStores: StoreData[] = [];
 
-      lines.forEach(line => {
+      lines.forEach((line: string) => {
           const parts = line.split('|');
           if (parts.length >= 2) { // At least Name and Address
               const name = parts[0].trim().replace(/\*\*/g, ''); // Clean bold markdown if any
@@ -152,7 +152,7 @@ const Tools: React.FC = () => {
                  </div>
                  <input 
                     type="text" 
-                    className="flex-1 p-2 text-sm outline-none text-slate-800 font-medium bg-transparent"
+                    className="flex-1 p-2 text-sm outline-none text-slate-800 font-medium bg-transparent text-slate-800"
                     placeholder="Cari: Pasir, Semen, Cat..."
                     value={storeQuery}
                     onChange={(e) => setStoreQuery(e.target.value)}
