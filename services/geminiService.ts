@@ -1,23 +1,25 @@
-import { GoogleGenAI, Type } from "@google/genai";
+import { GoogleGenAI, Type, HarmCategory, HarmBlockThreshold } from "@google/genai";
 
 const apiKey = process.env.API_KEY || '';
 
 // Helper: Validate API Key
 const getAI = () => {
-  if (!apiKey || apiKey.trim() === '' || apiKey.includes('AIza...')) {
-    throw new Error("API Key Google Gemini belum dikonfigurasi atau tidak valid. Silakan cek pengaturan Environment Variable di Vercel.");
+  // Simple check: ensure key exists and is not a placeholder
+  if (!apiKey || apiKey.trim() === '' || apiKey === 'API_KEY_KAMU_DISINI') {
+    throw new Error("API Key belum diset. Pastikan API_KEY ada di Environment Variables Vercel.");
   }
   return new GoogleGenAI({ apiKey });
 };
 
-// Helper: Retry Logic for 429 Errors
+// Helper: Retry Logic
 async function retryOperation<T>(operation: () => Promise<T>, retries = 3, delayMs = 2000): Promise<T> {
   try {
     return await operation();
   } catch (error: any) {
     const msg = error.message || '';
-    if (retries > 0 && (msg.includes("429") || msg.includes("Quota") || msg.includes("RESOURCE_EXHAUSTED"))) {
-      console.warn(`Quota hit. Retrying in ${delayMs}ms... (${retries} left)`);
+    // Retry on Quota/Rate Limit or Server Errors
+    if (retries > 0 && (msg.includes("429") || msg.includes("Quota") || msg.includes("503") || msg.includes("500"))) {
+      console.warn(`Retrying AI request... (${retries} left)`);
       await new Promise(resolve => setTimeout(resolve, delayMs));
       return retryOperation(operation, retries - 1, delayMs * 2);
     }
@@ -25,7 +27,7 @@ async function retryOperation<T>(operation: () => Promise<T>, retries = 3, delay
   }
 }
 
-// Helper: Compress Image for Mobile Optimization (Max 512px, JPEG 0.7)
+// Helper: Compress Image (Max 512px)
 const compressImage = (file: File | Blob): Promise<Blob> => {
   return new Promise((resolve, reject) => {
     const img = new Image();
@@ -40,7 +42,7 @@ const compressImage = (file: File | Blob): Promise<Blob> => {
       const canvas = document.createElement('canvas');
       let width = img.width;
       let height = img.height;
-      const MAX_SIZE = 512; // Keep it small for token efficiency
+      const MAX_SIZE = 512; 
 
       if (width > height) {
         if (width > MAX_SIZE) {
@@ -88,7 +90,7 @@ export const fileToGenerativePart = async (file: File | Blob): Promise<string> =
     });
   } catch (error) {
     console.error("Image processing error:", error);
-    throw new Error("Gagal memproses gambar. Pastikan format didukung.");
+    throw new Error("Gagal memproses gambar.");
   }
 };
 
@@ -96,8 +98,10 @@ export const visualizeRoom = async (imageBase64: string, prompt: string, maskBas
   return retryOperation(async () => {
     try {
       const ai = getAI();
-      // Visualizer needs image generation model
-      const model = 'gemini-2.5-flash-image';
+      
+      // FIX 1: Use 'gemini-2.0-flash-exp' which supports image gen and has better free limits
+      // than gemini-2.5-flash-image (Preview).
+      const model = 'gemini-2.0-flash-exp';
       
       const parts: any[] = [
         {
@@ -109,18 +113,18 @@ export const visualizeRoom = async (imageBase64: string, prompt: string, maskBas
       ];
 
       let textPrompt = "";
-
       if (maskBase64) {
+        // Masking flow
         parts.push({
           inlineData: {
             mimeType: 'image/png',
             data: maskBase64
           }
         });
-        
-        textPrompt = `Inpaint red area: ${prompt}. Keep rest identical.`;
+        textPrompt = `Edit the image based on this instruction: ${prompt}. Only change the masked area.`;
       } else {
-        textPrompt = `Redesign room: ${prompt}. Photorealistic.`;
+        // Full redesign flow
+        textPrompt = `Redesign this room/building. Style/Instruction: ${prompt}. Photorealistic, high quality.`;
       }
 
       parts.push({ text: textPrompt });
@@ -128,6 +132,14 @@ export const visualizeRoom = async (imageBase64: string, prompt: string, maskBas
       const response = await ai.models.generateContent({
         model: model,
         contents: { parts },
+        config: {
+          safetySettings: [
+            { category: HarmCategory.HARM_CATEGORY_HARASSMENT, threshold: HarmBlockThreshold.BLOCK_NONE },
+            { category: HarmCategory.HARM_CATEGORY_HATE_SPEECH, threshold: HarmBlockThreshold.BLOCK_NONE },
+            { category: HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT, threshold: HarmBlockThreshold.BLOCK_NONE },
+            { category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT, threshold: HarmBlockThreshold.BLOCK_NONE },
+          ]
+        }
       });
 
       return response;
@@ -138,17 +150,45 @@ export const visualizeRoom = async (imageBase64: string, prompt: string, maskBas
   });
 };
 
+export const visualizeRoomAdvice = async (imageBase64: string, prompt: string) => {
+    return retryOperation(async () => {
+        try {
+            const ai = getAI();
+            const response = await ai.models.generateContent({
+                model: 'gemini-1.5-flash',
+                contents: {
+                    parts: [
+                        { inlineData: { mimeType: 'image/jpeg', data: imageBase64 } },
+                        { text: `Saya ingin merenovasi ruangan ini. Permintaan saya: "${prompt}".
+                          Berikan saran renovasi mendetail (Arsitektural & Interior).
+                          Format output:
+                          1. Konsep Desain
+                          2. Rekomendasi Material
+                          3. Pencahayaan
+                          4. Estimasi Tahapan Pekerjaan`
+                        }
+                    ]
+                }
+            });
+            return response.text || "Tidak ada saran yang dihasilkan.";
+        } catch (error: any) {
+            console.error("Advice Error:", error);
+            throw new Error("Gagal mendapatkan saran renovasi.");
+        }
+    });
+};
+
 export const detectMaterials = async (imageBase64: string) => {
   return retryOperation(async () => {
     try {
       const ai = getAI();
-      // Use 1.5-flash (High TPM limit: 1M) instead of 2.5-flash (Low TPM limit: 250)
+      // FIX 2: Use gemini-1.5-flash (High TPM)
       const response = await ai.models.generateContent({
         model: 'gemini-1.5-flash',
         contents: {
           parts: [
             { inlineData: { mimeType: 'image/jpeg', data: imageBase64 } },
-            { text: "Analisa material & kerusakan. JSON output: detectedMaterial, condition, suggestion, ahspSuggestion." }
+            { text: "Analisa material bangunan di foto ini. Identifikasi kerusakan jika ada. Output JSON: detectedMaterial, condition, suggestion, ahspSuggestion (nama item pekerjaan terkait)." }
           ]
         },
         config: {
@@ -176,32 +216,24 @@ export const findStores = async (query: string, location: { lat: number; long: n
   return retryOperation(async () => {
     try {
       const ai = getAI();
-      let locationPrompt = "";
-      let toolConfig = undefined;
-
-      if (typeof location === 'object' && location !== null) {
-          toolConfig = {
-            retrievalConfig: {
-              latLng: {
-                latitude: location.lat,
-                longitude: location.long
-              }
-            }
-          };
-      } else if (typeof location === 'string' && location.trim() !== "") {
-          locationPrompt = ` di sekitar ${location}`;
+      
+      let locationText = "";
+      if (typeof location === 'string') {
+        locationText = location;
+      } else {
+        locationText = `koordinat ${location.lat},${location.long}`;
       }
 
-      // CRITICAL FIX: Use 'gemini-1.5-flash' instead of 'gemini-2.5-flash'
-      // gemini-2.5-flash has a very low TPM limit on free tier (approx 250 tokens/min).
-      // gemini-1.5-flash has ~1,000,000 tokens/min.
+      // FIX 3: Remove googleMaps tool to avoid billing/quota complexity on Free Tier.
+      // Use pure text knowledge generation with gemini-1.5-flash (High Quota).
+      const prompt = `Cari rekomendasi toko bangunan atau supplier material di sekitar ${locationText} yang menjual: "${query}". 
+      Berikan 5 rekomendasi.
+      Format output per baris: Nama Toko|Alamat Singkat|Estimasi Jarak/Lokasi|Jam Buka (jika tahu).
+      Contoh: Toko Abadi|Jl. Raya No.1|1 km|08:00-17:00`;
+
       const response = await ai.models.generateContent({
         model: 'gemini-1.5-flash', 
-        contents: `List 5 toko bangunan${locationPrompt} jual: ${query}. Format: Nama|Alamat|Rating|Jarak`,
-        config: {
-          tools: [{ googleMaps: {} }],
-          toolConfig: toolConfig
-        }
+        contents: prompt
       });
       
       return response;

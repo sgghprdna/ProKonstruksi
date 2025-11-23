@@ -2,9 +2,9 @@ import React, { useRef, useState, useEffect, useCallback } from 'react';
 import { 
   Camera, RefreshCw, Eraser, PenTool, Wand2, 
   ZoomIn, ZoomOut, Move, Image as ImageIcon, ArrowRight, 
-  Download, ScanLine, Loader2, Info, TriangleAlert
+  Download, ScanLine, Loader2, Info, TriangleAlert, X
 } from 'lucide-react';
-import { visualizeRoom, fileToGenerativePart, detectMaterials } from '../services/geminiService';
+import { visualizeRoom, fileToGenerativePart, detectMaterials, visualizeRoomAdvice } from '../services/geminiService';
 
 const Visualizer: React.FC = () => {
   // --- State: App Mode ---
@@ -14,6 +14,9 @@ const Visualizer: React.FC = () => {
   const [image, setImage] = useState<string | null>(null); // Base64 source
   const [resultImage, setResultImage] = useState<string | null>(null); // Base64 result
   
+  // --- State: Text Fallback ---
+  const [textAdvice, setTextAdvice] = useState<string | null>(null);
+
   // --- State: Canvas & Drawing ---
   const [isDrawing, setIsDrawing] = useState(false);
   const [hasDrawn, setHasDrawn] = useState(false);
@@ -125,6 +128,7 @@ const Visualizer: React.FC = () => {
         const base64 = await fileToGenerativePart(e.target.files[0]);
         setImage(`data:image/jpeg;base64,${base64}`); // Use JPEG for compressed images
         setResultImage(null);
+        setTextAdvice(null);
         setScanResult(null); // Reset scan
         setHasDrawn(false);
         setInteractionMode('draw');
@@ -256,6 +260,9 @@ const Visualizer: React.FC = () => {
   const handleGenerate = async () => {
     if (!image || !prompt) return;
     setIsLoading(true);
+    setResultImage(null);
+    setTextAdvice(null);
+
     try {
       const cleanBase64 = image.split(',')[1]; 
       let maskBase64 = undefined;
@@ -263,6 +270,7 @@ const Visualizer: React.FC = () => {
           maskBase64 = canvasRef.current.toDataURL('image/png').split(',')[1];
       }
 
+      // Try generating Image first
       const response = await visualizeRoom(cleanBase64, prompt, maskBase64);
       
       let newImageBase64 = null;
@@ -277,17 +285,26 @@ const Visualizer: React.FC = () => {
       if (newImageBase64) {
         setResultImage(`data:image/png;base64,${newImageBase64}`);
       } else {
-        alert("Gagal mendapatkan gambar dari AI. Silakan coba lagi.");
+         // If response OK but no image (Safety filter or other), throw to catch block
+         throw new Error("Gambar tidak dihasilkan oleh model.");
       }
 
     } catch (error: any) {
-      console.error(error);
-      // Handle 429 Quota Error gracefully
-      let msg = error.message || "Terjadi kesalahan saat memproses.";
-      if (msg.includes("429") || msg.includes("Quota") || msg.includes("RESOURCE_EXHAUSTED")) {
-        msg = "Kuota AI Google Gemini sedang penuh. Silakan coba lagi nanti (biasanya reset tiap jam).";
+      console.error("Image Gen Error, trying Fallback:", error);
+      
+      // FALLBACK TO TEXT ADVICE
+      try {
+          const cleanBase64 = image.split(',')[1];
+          const advice = await visualizeRoomAdvice(cleanBase64, prompt);
+          setTextAdvice(advice);
+      } catch (fallbackError: any) {
+          // Handle 429 Quota Error gracefully
+          let msg = error.message || "Terjadi kesalahan saat memproses.";
+          if (msg.includes("429") || msg.includes("Quota") || msg.includes("RESOURCE_EXHAUSTED")) {
+            msg = "Kuota AI Google Gemini sedang penuh. Silakan coba lagi nanti (biasanya reset tiap jam).";
+          }
+          alert(`Gagal: ${msg}`);
       }
-      alert(`Gagal: ${msg}`);
     } finally {
       setIsLoading(false);
     }
@@ -330,6 +347,7 @@ const Visualizer: React.FC = () => {
 
   const handleReset = () => {
     setResultImage(null);
+    setTextAdvice(null);
     setScanResult(null);
     setInteractionMode('draw');
     clearCanvas();
@@ -473,8 +491,29 @@ const Visualizer: React.FC = () => {
                 </div>
             </div>
 
+            {/* Fallback Text Advice Overlay */}
+            {textAdvice && (
+                <div className="absolute inset-0 z-50 bg-black/80 backdrop-blur-sm p-6 overflow-y-auto animate-in fade-in">
+                    <div className="bg-white rounded-2xl shadow-2xl p-6 max-w-lg mx-auto mt-4">
+                        <div className="flex justify-between items-start mb-4 border-b pb-4">
+                            <div>
+                                <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2">
+                                    <Info className="text-indigo-600" size={20}/> Saran Renovasi
+                                </h3>
+                                <p className="text-xs text-slate-500 mt-1">Visualisasi gambar tidak tersedia (Limit/Error), berikut saran AI:</p>
+                            </div>
+                            <button onClick={() => setTextAdvice(null)} className="p-1.5 bg-gray-100 rounded-full hover:bg-gray-200"><X size={18}/></button>
+                        </div>
+                        <div className="prose prose-sm text-slate-700 whitespace-pre-wrap leading-relaxed max-h-[50vh] overflow-y-auto">
+                            {textAdvice}
+                        </div>
+                        <button onClick={() => setTextAdvice(null)} className="w-full mt-4 bg-indigo-600 text-white py-3 rounded-xl font-bold shadow-lg hover:bg-indigo-700">Tutup</button>
+                    </div>
+                </div>
+            )}
+
             {/* Floating Controls Inside Canvas Area (Visualizer Only) */}
-            {activeTab === 'visualizer' && !resultImage && (
+            {activeTab === 'visualizer' && !resultImage && !textAdvice && (
                 <div className="absolute bottom-4 right-4 flex flex-col items-center gap-3 z-40">
                     {interactionMode === 'draw' && (
                         <div className="bg-white/90 backdrop-blur-sm p-2 rounded-full shadow-xl border border-gray-200 flex flex-col items-center h-48 w-10 justify-center relative">
@@ -504,7 +543,7 @@ const Visualizer: React.FC = () => {
       </div>
 
       {/* 4. Bottom Panel (Flex Item, Shrink 0) - Now sits properly in flow */}
-      {image && (
+      {image && !textAdvice && (
           <div className="shrink-0 bg-white/95 backdrop-blur border-t border-gray-200 p-4 z-50 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.1)] transition-all">
              
              {/* A. VISUALIZER CONTROLS */}
