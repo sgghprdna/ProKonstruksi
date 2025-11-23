@@ -10,7 +10,8 @@ const getAI = () => {
   return new GoogleGenAI({ apiKey });
 };
 
-// Helper: Compress Image for Mobile Optimization (Max 1024px, JPEG 0.8)
+// Helper: Compress Image for Mobile Optimization (Max 512px, JPEG 0.7)
+// Mengurangi ukuran ke 512px sangat membantu menghindari limit Token Per Minute (TPM) di Free Tier
 const compressImage = (file: File | Blob): Promise<Blob> => {
   return new Promise((resolve, reject) => {
     const img = new Image();
@@ -25,7 +26,7 @@ const compressImage = (file: File | Blob): Promise<Blob> => {
       const canvas = document.createElement('canvas');
       let width = img.width;
       let height = img.height;
-      const MAX_SIZE = 1024; // Limit to 1024px to prevent payload too large errors
+      const MAX_SIZE = 512; // Diturunkan dari 1024 ke 512 agar hemat token
 
       if (width > height) {
         if (width > MAX_SIZE) {
@@ -50,7 +51,7 @@ const compressImage = (file: File | Blob): Promise<Blob> => {
           else reject(new Error("Gagal kompresi gambar"));
         },
         'image/jpeg',
-        0.8 // Quality 80%
+        0.7 // Quality 70%
       );
     };
 
@@ -84,13 +85,13 @@ export const fileToGenerativePart = async (file: File | Blob): Promise<string> =
 export const visualizeRoom = async (imageBase64: string, prompt: string, maskBase64?: string) => {
   try {
     const ai = getAI();
-    // Using gemini-2.5-flash-image as it supports masking tasks well
+    // Visualizer butuh kemampuan editing gambar, tetap pakai 2.5-flash-image
     const model = 'gemini-2.5-flash-image';
     
     const parts: any[] = [
       {
         inlineData: {
-          mimeType: 'image/jpeg', // Always JPEG due to compression
+          mimeType: 'image/jpeg',
           data: imageBase64
         }
       }
@@ -145,8 +146,9 @@ export const visualizeRoom = async (imageBase64: string, prompt: string, maskBas
 export const detectMaterials = async (imageBase64: string) => {
   try {
     const ai = getAI();
+    // Menggunakan gemini-1.5-flash untuk text-only analysis karena lebih stabil & hemat kuota dibanding 2.5
     const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash',
+      model: 'gemini-1.5-flash',
       contents: {
         parts: [
           { inlineData: { mimeType: 'image/jpeg', data: imageBase64 } },
