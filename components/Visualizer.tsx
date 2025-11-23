@@ -78,8 +78,23 @@ const Visualizer: React.FC = () => {
 
   useEffect(() => {
       if (image) {
-          // Slightly increased delay to allow flex layout to settle
-          setTimeout(fitImageToScreen, 100);
+          // Initial fit
+          fitImageToScreen();
+
+          // Add resize listener for dynamic viewport changes (keyboard/address bar)
+          const resizeObserver = new ResizeObserver(() => {
+              window.requestAnimationFrame(() => {
+                fitImageToScreen();
+              });
+          });
+
+          if (containerRef.current) {
+              resizeObserver.observe(containerRef.current);
+          }
+
+          return () => {
+              resizeObserver.disconnect();
+          };
       }
   }, [image, fitImageToScreen]);
 

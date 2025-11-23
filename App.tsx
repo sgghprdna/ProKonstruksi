@@ -33,8 +33,11 @@ const App: React.FC = () => {
            {renderView()}
         </div>
 
-        {/* Bottom Navigation - Fixed size at bottom, safe area padding included implicitly by structure */}
-        <nav className="bg-white border-t border-gray-200 flex justify-around items-center p-2 pb-3 z-50 shrink-0 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)]">
+        {/* Bottom Navigation - Fixed size at bottom */}
+        <nav 
+            className="bg-white border-t border-gray-200 flex justify-around items-center p-2 z-50 shrink-0 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)]"
+            style={{ paddingBottom: 'calc(0.75rem + env(safe-area-inset-bottom))' }}
+        >
           <NavButton 
             active={currentView === AppView.HOME} 
             onClick={() => setCurrentView(AppView.HOME)} 
