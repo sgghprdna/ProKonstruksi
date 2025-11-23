@@ -12,7 +12,8 @@ const getAI = () => {
 };
 
 // Helper: Retry Logic
-async function retryOperation<T>(operation: () => Promise<T>, retries = 3, delayMs = 2000): Promise<T> {
+// Meningkatkan delay awal menjadi 5000ms (5 detik) untuk menangani limit versi gratis dengan lebih baik
+async function retryOperation<T>(operation: () => Promise<T>, retries = 3, delayMs = 5000): Promise<T> {
   try {
     return await operation();
   } catch (error: any) {
@@ -99,8 +100,7 @@ export const visualizeRoom = async (imageBase64: string, prompt: string, maskBas
     try {
       const ai = getAI();
       
-      // FIX 1: Use 'gemini-2.0-flash-exp' which supports image gen and has better free limits
-      // than gemini-2.5-flash-image (Preview).
+      // Menggunakan gemini-2.0-flash-exp (Gratis/Eksperimental) sesuai permintaan
       const model = 'gemini-2.0-flash-exp';
       
       const parts: any[] = [
@@ -121,10 +121,10 @@ export const visualizeRoom = async (imageBase64: string, prompt: string, maskBas
             data: maskBase64
           }
         });
-        textPrompt = `Edit the image based on this instruction: ${prompt}. Only change the masked area.`;
+        textPrompt = `Edit the image based on this instruction: ${prompt}. Only change the masked area. Return the edited image.`;
       } else {
         // Full redesign flow
-        textPrompt = `Redesign this room/building. Style/Instruction: ${prompt}. Photorealistic, high quality.`;
+        textPrompt = `Redesign this room/building. Style/Instruction: ${prompt}. Photorealistic, high quality. Return the designed image.`;
       }
 
       parts.push({ text: textPrompt });
@@ -154,8 +154,9 @@ export const visualizeRoomAdvice = async (imageBase64: string, prompt: string) =
     return retryOperation(async () => {
         try {
             const ai = getAI();
+            // Menggunakan gemini-2.0-flash-exp untuk teks juga
             const response = await ai.models.generateContent({
-                model: 'gemini-1.5-flash',
+                model: 'gemini-2.0-flash-exp',
                 contents: {
                     parts: [
                         { inlineData: { mimeType: 'image/jpeg', data: imageBase64 } },
@@ -182,9 +183,9 @@ export const detectMaterials = async (imageBase64: string) => {
   return retryOperation(async () => {
     try {
       const ai = getAI();
-      // FIX 2: Use gemini-1.5-flash (High TPM)
+      // Menggunakan gemini-2.0-flash-exp
       const response = await ai.models.generateContent({
-        model: 'gemini-1.5-flash',
+        model: 'gemini-2.0-flash-exp',
         contents: {
           parts: [
             { inlineData: { mimeType: 'image/jpeg', data: imageBase64 } },
@@ -224,15 +225,14 @@ export const findStores = async (query: string, location: { lat: number; long: n
         locationText = `koordinat ${location.lat},${location.long}`;
       }
 
-      // FIX 3: Remove googleMaps tool to avoid billing/quota complexity on Free Tier.
-      // Use pure text knowledge generation with gemini-1.5-flash (High Quota).
       const prompt = `Cari rekomendasi toko bangunan atau supplier material di sekitar ${locationText} yang menjual: "${query}". 
       Berikan 5 rekomendasi.
       Format output per baris: Nama Toko|Alamat Singkat|Estimasi Jarak/Lokasi|Jam Buka (jika tahu).
       Contoh: Toko Abadi|Jl. Raya No.1|1 km|08:00-17:00`;
 
+      // Menggunakan gemini-2.0-flash-exp
       const response = await ai.models.generateContent({
-        model: 'gemini-1.5-flash', 
+        model: 'gemini-2.0-flash-exp', 
         contents: prompt
       });
       
